@@ -1,0 +1,89 @@
+# 每月換股（Alpaca 模擬盤），喺 GitHub 雲端行，部 Mac 熄咗都得。
+# 每個工作日都會行，但程式自己會跳過：未開市 / 唔係每月頭 3 個交易日 / Alpaca 今個月已經有單。
+name: Rebalance (paper)
+
+on:
+  # 展示版冇開定時觸發。自己用嘅話：喺 Settings → Secrets 加入 Alpaca Paper key，
+  # 再加返 schedule，例如 15:17 UTC（紐約開市後）：
+  #   schedule:
+  #     - cron: "17 15 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preview = 只預覽唔落單；scheduled = 同定時任務一樣（符合條件先落單）"
+        type: choice
+        options: [preview, scheduled]
+        default: preview
+
+permissions:
+  contents: read
+
+# 唔好兩個 run 同時落單
+concurrency:
+  group: rebalance
+  cancel-in-progress: false
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      ALPACA_MOM_API_KEY: ${{ secrets.ALPACA_MOM_API_KEY }}
+      ALPACA_MOM_SECRET_KEY: ${{ secrets.ALPACA_MOM_SECRET_KEY }}
+      ALPACA_EW_API_KEY: ${{ secrets.ALPACA_EW_API_KEY }}
+      ALPACA_EW_SECRET_KEY: ${{ secrets.ALPACA_EW_SECRET_KEY }}
+      # Kill switch：Settings → Secrets and variables → Actions → Variables 加 TRADING_DISABLED=1
+      TRADING_DISABLED: ${{ vars.TRADING_DISABLED }}
+      MODE: ${{ inputs.mode || 'scheduled' }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Check secrets
+        shell: bash
+        run: |
+          if [ -z "$ALPACA_API_KEY" ] || [ -z "$ALPACA_SECRET_KEY" ]; then
+            echo "::error::未設定 ALPACA_API_KEY / ALPACA_SECRET_KEY（Settings → Secrets and variables → Actions）"
+            exit 1
+          fi
+
+      - name: Run (${{ env.MODE }})
+        shell: bash
+        run: |
+          mkdir -p logs
+          {
+            echo "===== $(TZ=Asia/Hong_Kong date '+%Y-%m-%d %H:%M:%S %Z') · GitHub Actions · $MODE ====="
+            python -m trader.run status
+            if [ "$MODE" = "preview" ]; then
+              python -m trader.run preview
+            else
+              python -m trader.run rebalance --execute
+            fi
+          } 2>&1 | tee logs/actions.log
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          [ -f logs/actions.log ] || exit 0
+          { echo '```'; cat logs/actions.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      # 雲端 SQLite 日誌每次都會冇咗，上載做 artifact 留底（90 日）
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: journal-${{ github.run_id }}
+          path: |
+            db/trading.sqlite
+            logs/actions.log
+          if-no-files-found: ignore
+          retention-days: 90
