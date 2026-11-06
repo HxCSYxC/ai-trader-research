@@ -12,6 +12,10 @@ spec = importlib.util.spec_from_file_location("export_public", ROOT / "deploy" /
 export_public = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(export_public)
 
+# 呢啲測試係測私人版 → 公開版嘅轉換；喺公開版入面 README 已經轉咗，冇嘢好測
+pytestmark = pytest.mark.skipif(f"{export_public.PUBLIC_REPO}/actions" in (ROOT / "README.md").read_text(),
+                                reason="公開版唔使測匯出")
+
 
 @pytest.fixture
 def tree(tmp_path):
