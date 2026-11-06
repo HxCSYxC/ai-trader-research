@@ -4,6 +4,11 @@
 
 [English](README.md) | **廣東話**
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/summary-dark.svg">
+  <img src="docs/images/summary-light.svg" alt="總結圖：所有測試過嘅策略，扣成本後嘅 t 值全部低過 2（要過 2 先算有 edge）；最高係模擬盤選股策略，t = 1.49。" width="880">
+</picture>
+
 自己用嘅美股 AI 交易研究系統，用 Alpaca **模擬盤**（paper trading）驗證，唔涉及真錢。
 
 > **呢個係展示版。** 每月自動換股喺另一個私人 repo 運行；呢度嘅 GitHub Actions 冇開定時，亦冇任何 key。
@@ -40,6 +45,7 @@ python -m ml.pick --k 20 --unlock         # 揀定方法之後先打開鎖櫃期
 - 風控：單股 10%、單張單 15%、現金緩衝、最少交易金額、先賣後買、kill switch
 - 換股時間表：每月頭 5 個交易日先落單；第 6 個交易日都未有單就報 `missed`（exit 1）
 - 策略一致：半年報告（`trader/recent.py`）揀股同模擬盤一樣，有換手緩衝
+- 公開版匯出：`.env`、SQLite、log、似 key 嘅字串、開咗定時嘅 workflow 都會擋住
 - 只會連模擬盤：`TradingClient` 一定 `paper=True`
 
 冇裝 TA-Lib 嘅話，全形態掃描嗰部分測試會自動 skip；GitHub Actions 會裝埋全部行。
@@ -134,6 +140,7 @@ python -m intraday.run --unlock     # 鎖櫃期 2025 →，揀定假設先開
 | `trader/recent.py` | 用模擬盤策略回測最近 N 個月（`python -m trader.recent --months 6`） |
 | `.github/workflows/rebalance.yml` | 雲端定時換股（GitHub Actions） |
 | `app/trading_view.py` | 模擬盤頁 |
+| `deploy/export_public.py` | 同步去公開展示版（自動改公開版設定，檢查冇 key、冇 log、冇私人 email 先 commit） |
 | `intraday/data.py` | Alpaca 5 分鐘 K 線（SIP）、VWAP、ATR |
 | `intraday/patterns.py` | 4 個即日形態嘅規則 |
 | `intraday/backtest.py` | 即日回測同隨機入市對照 |
@@ -152,5 +159,6 @@ python -m intraday.run --unlock     # 鎖櫃期 2025 →，揀定假設先開
 - [x] 第 3b 階段：AI 選股（cross-sectional）— IC 0.02（t=1.15），贏平均買晒 5%/年，但輸淨係動量
 - [x] 第 3c 階段：S&P 500 範圍、4 個改良版本、開發期 / 鎖櫃期分開、只揀已入指數嘅股
   - 結論：AI IC ≈ 0，冇版本嘅超額回報 t 值過 2；價量 features 喺大型股搵唔到穩定 edge
+  - 鎖櫃期 2022-01 → 2026-10（Gradient Boosting，57 個月）：AI IC −0.006；最好係模擬盤策略，每年跑贏平均買晒 16.4%，但 t = 1.49；淨係動量都有 14.2%（t = 1.17），即係大部分係動量嘅功勞，唔係 ML。換手緩衝係打開鎖櫃期之後先加，所以呢行唔算真正嘅 out-of-sample
 - [x] 第 4 階段：Alpaca Paper Trading + 風控
 - [x] 定時換股搬上 GitHub Actions（Mac 熄機都照行）

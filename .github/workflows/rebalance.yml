@@ -5,9 +5,9 @@ name: Rebalance (paper)
 
 on:
   # 展示版冇開定時觸發。自己用嘅話：喺 Settings → Secrets 加入 Alpaca Paper key，
-  # 再加返 schedule，例如 15:17 UTC（紐約開市後）：
+  # 再加返 schedule，例如每個交易日開市時間每個鐘一次：
   #   schedule:
-  #     - cron: "17 15 * * 1-5"
+  #     - cron: "47 13-20 * * 1-5"
   workflow_dispatch:
     inputs:
       mode:
