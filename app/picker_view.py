@@ -6,15 +6,15 @@ import streamlit as st
 import config
 from ml.cross_section import FEATURE_NAMES, MODELS
 from ml.stock_picker import (
-    EW, SPY, VARIANTS, build_curves, latest_picks, load, momentum_scores, period_table,
+    EW, LIVE, SPY, VARIANTS, build_curves, latest_picks, load, momentum_scores, period_table,
     quintiles, score, signal_quality, split_periods,
 )
 from ml.universe import UNIVERSES
 
 # 類別色固定跟住策略（唔會因為揀少咗而轉色）
 PALETTE = {
-    "light": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"],
-    "dark": ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+    "light": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#0f8b8d", "#4a3aa7", "#e34948"],
+    "dark": ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#2ab3b5", "#9085e9", "#e66767"],
 }
 CURVE_ORDER = [*VARIANTS, EW, SPY]
 
@@ -95,7 +95,7 @@ def picker_page():
         for name, desc in VARIANTS.items():
             st.markdown(f"- **{name}**：{desc}")
 
-    shown = st.multiselect("圖表顯示", CURVE_ORDER, default=["AI", "動量（冇 ML）", EW, SPY])
+    shown = st.multiselect("圖表顯示", CURVE_ORDER, default=["AI", "動量（冇 ML）", LIVE, EW, SPY])
     eq_fig = go.Figure()
     for name in shown:
         c = curves[name]

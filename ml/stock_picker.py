@@ -26,7 +26,9 @@ VARIANTS = {
     "AI + 減少換手": "已經揸住嘅只要仲喺頭 2K 名就唔賣",
     "AI 行業內排名": "features 喺同一行業入面比較，避免全部揸晒熱門行業",
     "AI + 跌市持現金": "SPY 跌穿 200 日線嗰個月持現金",
+    "混合 + 減少換手（模擬盤）": "AI + 動量混合，再加減少換手（已經揸住嘅仲喺頭 AI_KEEP_MULT × K 名就唔賣）。模擬盤 AI 帳戶用緊呢個",
 }
+LIVE = "混合 + 減少換手（模擬盤）"
 
 
 @dataclass
@@ -100,6 +102,7 @@ def build_curves(data: PickerData, k: int, ai: pd.Series, ai_sector: pd.Series):
         "AI + 減少換手": top_k_buffered(ai, k, 2 * k),
         "AI 行業內排名": top_k(ai_sector, k),
         "AI + 跌市持現金": apply_regime(top_k(ai, k), data.spy_close),
+        LIVE: top_k_buffered(blend(ai, mom), k, config.AI_KEEP_MULT * k),  # 同 trader/targets.py 一樣
         EW: everyone,
     }
     curves, turnover = {}, {}

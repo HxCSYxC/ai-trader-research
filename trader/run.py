@@ -8,6 +8,7 @@
     python -m trader.run kill / unkill             # 開 / 關 kill switch
 """
 import argparse
+import sys
 
 import pandas as pd
 
@@ -76,8 +77,11 @@ def main():
         print_report(rebalance(args.account or "ALPACA", offline=True))
     else:
         execute = args.command == "rebalance" and args.execute
-        for a in accounts(args.account):
-            print_report(rebalance(a, execute=execute, force=args.force))
+        reports = [rebalance(a, execute=execute, force=args.force) for a in accounts(args.account)]
+        for r in reports:
+            print_report(r)
+        if any(r.status == "missed" for r in reports):
+            sys.exit(1)  # 定時任務會變紅，GitHub 會 email 通知
 
 
 if __name__ == "__main__":

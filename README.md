@@ -1,5 +1,7 @@
 # AI Trader — testing whether price-based signals beat the US stock market
 
+[![Tests](https://github.com/HxCSYxC/ai-trader-research/actions/workflows/tests.yml/badge.svg)](https://github.com/HxCSYxC/ai-trader-research/actions/workflows/tests.yml)
+
 **English** | [廣東話](README.zh-HK.md)
 
 A personal research project: an end-to-end system that backtests trading ideas on US stocks, tries to break them with out-of-sample tests, and trades the survivors on an [Alpaca](https://alpaca.markets) **paper** (simulated money) account.
@@ -24,8 +26,8 @@ Find out whether signals built from public price and volume data — classic cha
 | Experiment | Result |
 |---|---|
 | Daily ML direction signal (10 stocks, walk-forward) | AUC ≈ 0.50, no better than a coin flip |
-| S&P 500 ML stock picker (Ridge, Gradient Boosting; 6 portfolio variants; 2014 →) | Information coefficient ≈ 0; no variant beats equal-weight with excess-return t > 2 |
-| 4 intraday patterns (ORB, previous-day-high breakout, VWAP reclaim, bullish engulfing; 64k trades, 2020–2024) | All lose 3–4 bps per trade after costs; both breakout patterns do *worse* than random entry (t = −11.9, −7.8) |
+| S&P 500 ML stock picker (Ridge, Gradient Boosting; 7 portfolio variants including the one being paper-traded; 2014 →) | Information coefficient ≈ 0; no variant beats equal-weight with excess-return t > 2 |
+| 4 intraday patterns (ORB, previous-day-high breakout, VWAP reclaim, bullish engulfing; 64k trades, 2020–2024) | All lose 3–4 bps per trade after costs; both breakout patterns do *worse* than random entry (t = −10.9, −6.8) |
 | Full scan: 61 TA-Lib candlestick patterns × long/short + the 4 above (91 hypotheses, ~1.09M trades, 2020–2024) | 0 of 91 pass the pre-registered test |
 | Follow-up: short the breakouts (lockbox 2025 →) | Beats random shorting (t = 5.8, 4.1) but still loses 4–5 bps per trade after costs, so it fails |
 
@@ -41,7 +43,7 @@ Streamlit dashboard (the UI is in Cantonese; captions below explain each view).
 
 ![Parameter heatmap](docs/images/heatmap.png)
 
-**ML stock picker — portfolio backtest.** Monthly walk-forward ranking of the S&P 500, holding the top 20, development period 2014–2021. The table compares six variants against equal-weight (平均買晒) and SPY. The best excess-return t-stat is 0.73: the outperformance is indistinguishable from luck.
+**ML stock picker — portfolio backtest.** Monthly walk-forward ranking of the S&P 500, holding the top 20, development period 2014–2021. The table compares seven variants against equal-weight (平均買晒) and SPY, including the exact strategy running on the paper account (混合 + 減少換手（模擬盤）, teal). The best excess-return t-stat is 0.77 and the paper-traded strategy's is 0.14: the outperformance is indistinguishable from luck.
 
 ![ML stock picker backtest](docs/images/stock-picker.png)
 
@@ -75,6 +77,15 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 The intraday research and the paper-trading commands need free Alpaca paper API keys in `.env` (see `.env.example`). The full pattern scan also needs TA-Lib: `pip install -r requirements-research.txt`.
+
+## Tests
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
+87 tests on synthetic data (no network, no keys, no orders) check the research-integrity invariants: no look-ahead in intraday entries and exits, the walk-forward purge (changing future labels never changes a prediction), turnover costs, Benjamini–Hochberg against a hand-computed example, the risk limits, the monthly rebalance window and missed-month alert, that the six-month report picks stocks exactly like the live account, and that the broker only ever connects to paper accounts. GitHub Actions runs them on every push.
 
 ---
 

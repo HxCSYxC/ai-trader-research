@@ -3,7 +3,7 @@
 出場規則（所有形態一樣，預先定死）：
   止蝕 = 入市價 − 1 × ATR；止賺 = 入市價 + 2 × ATR；15:55 前未觸發就平倉。
   同一枝 K 線同時掂到止蝕同止賺 → 當止蝕（保守）。開市跳空穿咗 → 用開市價。
-對照組：同一日、同一隻股、隨機一枝 K 線入市，用同一套出場規則。
+對照組：同一日、同一隻股、隨機一枝 K 線入市（10:00–15:00，同 scan.py / fade.py 一樣），用同一套出場規則。
 """
 import zlib
 
@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from intraday.data import SYMBOLS, add_session_columns, get_bars
-from intraday.patterns import LAST_SIGNAL_BAR, PATTERNS, find_signals
+from intraday.patterns import LAST_SIGNAL_BAR, OPENING_BARS, PATTERNS, find_signals
 
 STOP_ATR, TARGET_ATR = 1.0, 2.0
 LOCKBOX_START = pd.Timestamp("2025-01-01")
@@ -46,7 +46,8 @@ def run_symbol(symbol: str, seed: int = 0) -> pd.DataFrame:
             if np.isnan(atr[i]) or atr[i] <= 0:
                 continue
             ret, j, why = simulate(o, h, l, c, i, atr[i])
-            r = int(rng.integers(1, min(LAST_SIGNAL_BAR, len(g) - 3) + 1))
+            # 開市頭 30 分鐘唔做對照：ATR 包埋隔夜跳空，止蝕止賺位會偏闊
+            r = int(rng.integers(OPENING_BARS, min(LAST_SIGNAL_BAR, len(g) - 3) + 1))
             rand_ret, _, _ = simulate(o, h, l, c, r, atr[r]) if atr[r] > 0 else (np.nan, 0, "")
             rows.append({
                 "symbol": symbol, "day": day, "pattern": pattern,

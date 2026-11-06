@@ -32,9 +32,10 @@ def month_start_new_york(today: pd.Timestamp) -> pd.Timestamp:
     return today.replace(day=1).tz_localize("America/New_York")
 
 
-def is_rebalance_window(broker: AlpacaBroker, today: pd.Timestamp) -> bool:
+def trading_day_of_month(broker: AlpacaBroker, today: pd.Timestamp) -> int:
+    """今日係今個月第幾個交易日；今日唔開市就係 0。"""
     days = broker.trading_days(today.replace(day=1).date(), today.date())
-    return 0 < len(days) <= config.REBALANCE_WINDOW_DAYS and days[-1] == today.date()
+    return len(days) if days and days[-1] == today.date() else 0
 
 
 def rebalance(account: str, execute: bool = False, offline: bool = False, force: bool = False) -> RunReport:
@@ -54,10 +55,16 @@ def rebalance(account: str, execute: bool = False, offline: bool = False, force:
 
         today = new_york_today()
         if execute and not force:
+            window = config.REBALANCE_WINDOW_DAYS
+            day = trading_day_of_month(broker, today)
+            # 窗口後第一個交易日檢查一次：今個月一張單都冇就報錯（GitHub 會 email 通知），唔好靜靜雞漏咗
+            if day == window + 1 and not broker.orders_since(month_start_new_york(today)):
+                return _finish(run_id, report, "missed",
+                               f"過咗每月頭 {window} 個交易日都未換到股，要手動補：rebalance --execute --force")
             if not broker.market_open():
                 return _finish(run_id, report, "skipped", "未開市")
-            if not is_rebalance_window(broker, today):
-                return _finish(run_id, report, "skipped", f"唔係每月頭 {config.REBALANCE_WINDOW_DAYS} 個交易日")
+            if not 0 < day <= window:
+                return _finish(run_id, report, "skipped", f"唔係每月頭 {window} 個交易日")
             if journal.executed_this_month(account, today):
                 return _finish(run_id, report, "skipped", "今個月已經換過股")
             # GitHub Actions 每次都係新機，SQLite 冇記錄；以 Alpaca 嘅成交記錄為準，避免同一個月換兩次

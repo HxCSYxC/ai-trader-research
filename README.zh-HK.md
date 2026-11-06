@@ -1,5 +1,7 @@
 # AI Trader
 
+[![Tests](https://github.com/HxCSYxC/ai-trader-research/actions/workflows/tests.yml/badge.svg)](https://github.com/HxCSYxC/ai-trader-research/actions/workflows/tests.yml)
+
 [English](README.md) | **廣東話**
 
 自己用嘅美股 AI 交易研究系統，用 Alpaca **模擬盤**（paper trading）驗證，唔涉及真錢。
@@ -23,13 +25,32 @@ python -m ml.pick --k 20 --unlock         # 揀定方法之後先打開鎖櫃期
 重新安裝：`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 研究用（即日形態全形態掃描要 TA-Lib）：`.venv/bin/pip install -r requirements-research.txt`
 
+## 測試
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
+全部用合成數據（冇網絡、冇 key、唔會落單），檢查研究紀律同風控：
+- 冇 look-ahead：即日回測喺下一枝開市價入市；止蝕 / 止賺 / 跳空（好倉同淡倉）
+- Walk-forward purge：train 嘅 label 喺預測嗰陣一定已經知道；亂改未來 label 唔會影響預測
+- 組合成本：換手按 `config.COMMISSION` 扣
+- Benjamini–Hochberg：同手計例子對數
+- 風控：單股 10%、單張單 15%、現金緩衝、最少交易金額、先賣後買、kill switch
+- 換股時間表：每月頭 5 個交易日先落單；第 6 個交易日都未有單就報 `missed`（exit 1）
+- 策略一致：半年報告（`trader/recent.py`）揀股同模擬盤一樣，有換手緩衝
+- 只會連模擬盤：`TradingClient` 一定 `paper=True`
+
+冇裝 TA-Lib 嘅話，全形態掃描嗰部分測試會自動 skip；GitHub Actions 會裝埋全部行。
+
 ## 模擬盤（Alpaca Paper Trading）
 
 ```bash
 python -m trader.run preview --offline        # 冇 key 都得：假帳戶預覽今個月嘅單
 python -m trader.run status                   # 帳戶、持倉、kill switch
 python -m trader.run preview                  # 用 paper account 預覽，唔落單
-python -m trader.run rebalance --execute      # 定時任務用：每月頭 3 個交易日、開市時先落單
+python -m trader.run rebalance --execute      # 定時任務用：每月頭 5 個交易日、開市時先落單
 python -m trader.run kill / unkill            # 開 / 關 kill switch
 ```
 
@@ -42,8 +63,9 @@ python -m trader.run kill / unkill            # 開 / 關 kill switch
 
 ## 雲端定時換股（GitHub Actions）
 
-`.github/workflows/rebalance.yml`：星期一至五 15:17 UTC（香港 23:17，紐約開市後）行一次，17:17 UTC 再行一次做後備。
-未開市、唔係每月頭 3 個交易日、或者 Alpaca 今個月已經有單，程式會自己跳過。
+`.github/workflows/rebalance.yml`：星期一至五 13:47–20:47 UTC 每個鐘行一次（GitHub 定時任務可以延遲幾個鐘，所以排多幾次）。
+未開市、唔係每月頭 5 個交易日、或者 Alpaca 今個月已經有單，程式會自己跳過。
+過咗頭 5 個交易日都未換到股，嗰日個 run 會失敗，GitHub 會 email 通知你，要手動補。
 
 設定（repo 一定要係 **Private**）：
 1. GitHub repo → Settings → Secrets and variables → Actions → **Secrets** → New repository secret，逐個加：

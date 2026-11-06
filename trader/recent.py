@@ -3,7 +3,8 @@
     python -m trader.recent --months 6
 
 同模擬盤一致：S&P 500（只揀已入指數）、月尾訊號、下一日開市換股、Top 20、留 2% 現金、每邊成本 0.05%。
-AI 每個月只用嗰個月尾或之前嘅數據重新 train（同 trader/targets.py 一樣用 predict_latest）。
+AI 每個月只用嗰個月尾或之前嘅數據重新 train（同 trader/targets.py 一樣用 predict_latest），
+揀股都同模擬盤一樣有換手緩衝（config.AI_KEEP_MULT）：上個月揸住嘅仲排喺頭幾名就唔賣。
 """
 import argparse
 import json
@@ -13,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 import config
-from ml.cross_section import blend, predict_latest, simulate, top_k
+from ml.cross_section import blend, pick_buffered, predict_latest, simulate, top_k
 from ml.pipeline import curve_stats
 from ml.stock_picker import load
 
@@ -24,6 +25,7 @@ INVESTED = 1 - config.CASH_BUFFER
 def holdings_for(data, signal_dates: list[pd.Timestamp]) -> dict[str, dict]:
     """每個策略喺每個訊號日要揸咩。"""
     out = {name: {} for name in config.ACCOUNTS}
+    prev = None
     for d in signal_dates:
         X_d = data.X[data.X.index.get_level_values("date") <= d]
         mom = data.X["mom_12_1"].xs(d, level="date", drop_level=False).dropna()
@@ -32,9 +34,12 @@ def holdings_for(data, signal_dates: list[pd.Timestamp]) -> dict[str, dict]:
                 out[account][d] = data.X.xs(d, level="date").dropna().index.tolist()
             elif s["strategy"] == "動量（冇 ML）":
                 out[account][d] = top_k(mom, s["k"])[d]
-            elif s["strategy"] == "AI + 動量混合":
+            elif s["strategy"] in ("AI", "AI + 動量混合"):
                 ai = predict_latest(X_d, data.fwd, s["model"])
-                out[account][d] = top_k(blend(ai, mom), s["k"])[d]
+                ranked = (ai if s["strategy"] == "AI" else blend(ai, mom)).droplevel("date").sort_values(ascending=False)
+                held = out[account][prev] if prev is not None else []
+                out[account][d] = pick_buffered(ranked.index.tolist(), set(held), s["k"], config.AI_KEEP_MULT * s["k"])
+        prev = d
     return out
 
 

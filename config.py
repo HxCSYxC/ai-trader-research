@@ -37,7 +37,7 @@ MAX_DAILY_LOSS = 0.05        # 帳戶今日跌超過 5% 就唔落單
 MAX_ORDER_PCT = 0.15         # 單一張單最多係資產 15%（全部賣出除外）
 MIN_TRADE_DOLLARS = 50       # 少過呢個金額嘅調整唔做，慳換手
 MAX_ORDERS_PER_RUN = 600
-REBALANCE_WINDOW_DAYS = 3    # 每月頭 3 個交易日內都可以補做（例如部機瞓咗）
+REBALANCE_WINDOW_DAYS = 5    # 每月頭 5 個交易日內都可以補做（例如 GitHub 定時任務延遲咗）
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 KILL_SWITCH_FILE = os.path.join(PROJECT_DIR, "KILL_SWITCH")

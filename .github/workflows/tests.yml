@@ -1,0 +1,28 @@
+# 每次 push 去 main 同開 PR 都行一次測試。全部用合成數據：冇網絡、冇 Alpaca key。
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # TA-Lib 有 wheel，裝埋就連全形態掃描嘅測試都行；本機冇裝會自動 skip
+      - run: pip install -r requirements-dev.txt -r requirements-research.txt
+
+      - run: python -m pytest
